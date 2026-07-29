@@ -1,6 +1,18 @@
-import { Link } from "react-router";
+import { Badge } from "../components/common/Badge";
+import { ButtonLink } from "../components/common/ButtonLink";
+import { Card } from "../components/common/Card";
+import { formatCurrency } from "../utils/formatCurrency";
 
-import { Button } from "../components/common/Button";
+const exampleMetrics = [
+  {
+    label: "Valor disponível por mês",
+    value: 1250,
+  },
+  {
+    label: "Economia necessária",
+    value: 900,
+  },
+];
 
 /**
  * Página inicial do Grana Clara.
@@ -13,9 +25,7 @@ export function HomePage() {
   return (
     <section className="grid gap-8 py-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
       <div className="space-y-6">
-        <span className="inline-flex rounded-full bg-[var(--color-surface-muted)] px-4 py-2 text-sm font-semibold text-[var(--color-primary)]">
-          Planejamento financeiro mobile-first
-        </span>
+        <Badge variant="primary">Planejamento financeiro mobile-first</Badge>
 
         <div className="space-y-4">
           <h2 className="text-4xl font-bold tracking-tight md:text-5xl">
@@ -29,46 +39,48 @@ export function HomePage() {
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Link to="/simulacao">
-            <Button>Começar simulação</Button>
-          </Link>
+          <ButtonLink to="/simulacao" className="w-full sm:w-auto">
+            Começar simulação
+          </ButtonLink>
 
-          <Link to="/historico">
-            <Button variant="secondary">Ver histórico</Button>
-          </Link>
+          <ButtonLink
+            to="/historico"
+            variant="secondary"
+            className="w-full sm:w-auto"
+          >
+            Ver histórico
+          </ButtonLink>
         </div>
       </div>
 
-      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-sm">
+      <Card padding="lg">
         <p className="mb-4 text-sm font-semibold text-[var(--color-text-muted)]">
           Exemplo de diagnóstico
         </p>
 
         <div className="space-y-4">
-          <div className="rounded-2xl bg-[var(--color-surface-muted)] p-4">
-            <p className="text-sm text-[var(--color-text-muted)]">
-              Valor disponível por mês
-            </p>
-            <strong className="text-2xl">R$ 1.250,00</strong>
-          </div>
+          {exampleMetrics.map((metric) => (
+            <Card key={metric.label} variant="muted" padding="sm">
+              <p className="text-sm text-[var(--color-text-muted)]">
+                {metric.label}
+              </p>
 
-          <div className="rounded-2xl bg-[var(--color-surface-muted)] p-4">
-            <p className="text-sm text-[var(--color-text-muted)]">
-              Economia necessária
-            </p>
-            <strong className="text-2xl">R$ 900,00</strong>
-          </div>
+              <strong className="mt-1 block text-2xl">
+                {formatCurrency(metric.value)}
+              </strong>
+            </Card>
+          ))}
 
-          <div className="rounded-2xl border border-[var(--color-border)] p-4">
-            <p className="font-semibold text-[var(--color-primary)]">
-              Meta viável
+          <Card variant="outline" padding="sm">
+            <Badge variant="success">Meta viável</Badge>
+
+            <p className="mt-3 text-sm text-[var(--color-text-muted)]">
+              Você ainda teria {formatCurrency(350)} de margem após reservar
+              para sua meta.
             </p>
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-              Você ainda teria R$ 350,00 de margem após reservar para sua meta.
-            </p>
-          </div>
+          </Card>
         </div>
-      </div>
+      </Card>
     </section>
   );
 }
