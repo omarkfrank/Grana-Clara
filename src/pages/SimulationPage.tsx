@@ -4,58 +4,149 @@ import { Alert } from "../components/common/Alert";
 import { Badge } from "../components/common/Badge";
 import { Button } from "../components/common/Button";
 import { Card } from "../components/common/Card";
+import { SimulationForm } from "../components/finance/SimulationForm";
 import { OnboardingFlow } from "../components/onboarding/OnboardingFlow";
+import type { SimulationInput, SimulationResult } from "../types/finance";
 import type { OnboardingAnswers } from "../types/onboarding";
+import { calculateSimulation } from "../utils/calculateSimulation";
+import { formatCurrency } from "../utils/formatCurrency";
+
+type CompletedSimulation = {
+  input: SimulationInput;
+  result: SimulationResult;
+};
+
+const statusConfiguration = {
+  viable: {
+    label: "Meta viável",
+    variant: "success",
+    message:
+      "A meta pode ser alcançada no prazo informado considerando os dados atuais.",
+  },
+  needs_adjustments: {
+    label: "Pequenos ajustes necessários",
+    variant: "warning",
+    message:
+      "A meta está próxima de ser viável, mas exige pequenos ajustes no prazo ou nos gastos.",
+  },
+  unfeasible: {
+    label: "Cenário precisa ser reorganizado",
+    variant: "danger",
+    message:
+      "A meta exige ajustes mais relevantes no prazo, no valor ou na organização mensal.",
+  },
+} as const;
 
 /**
  * Página principal do fluxo de simulação financeira.
  *
- * Nesta primeira parte da Fase 3, a página controla a conclusão
- * do onboarding. Posteriormente, as respostas serão encaminhadas
- * ao formulário financeiro e salvas junto à simulação.
+ * Fluxo atual:
+ * 1. Onboarding financeiro.
+ * 2. Preenchimento da simulação.
+ * 3. Cálculo local da viabilidade.
+ *
+ * Persistência, rota de resultado e IA serão conectadas
+ * nas próximas fases.
  */
 export function SimulationPage() {
   const [onboardingAnswers, setOnboardingAnswers] =
     useState<OnboardingAnswers | null>(null);
 
-  function handleCompleteOnboarding(answers: OnboardingAnswers) {
-    setOnboardingAnswers(answers);
+  const [completedSimulation, setCompletedSimulation] =
+    useState<CompletedSimulation | null>(null);
+
+  function handleCompleteSimulation(input: SimulationInput) {
+    const result = calculateSimulation(input);
+
+    setCompletedSimulation({
+      input,
+      result,
+    });
   }
 
-  function handleRestartOnboarding() {
+  function handleCreateAnotherSimulation() {
+    setCompletedSimulation(null);
+  }
+
+  function handleRestartFlow() {
+    setCompletedSimulation(null);
     setOnboardingAnswers(null);
   }
 
   if (!onboardingAnswers) {
     return (
       <section className="py-4">
-        <OnboardingFlow onComplete={handleCompleteOnboarding} />
+        <OnboardingFlow onComplete={setOnboardingAnswers} />
       </section>
     );
   }
 
+  if (!completedSimulation) {
+    return (
+      <section className="py-4">
+        <SimulationForm onComplete={handleCompleteSimulation} />
+      </section>
+    );
+  }
+
+  const { input, result } = completedSimulation;
+  const status = statusConfiguration[result.status];
+
   return (
     <section className="py-4">
       <Card padding="lg" className="mx-auto max-w-2xl">
-        <Badge variant="success">Onboarding concluído</Badge>
+        <Badge variant={status.variant}>{status.label}</Badge>
 
         <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
-          Seu perfil inicial foi registrado.
+          Resultado: {input.meta}
         </h2>
 
         <p className="mt-3 leading-7 text-[var(--color-text-muted)]">
-          Agora podemos utilizar suas respostas para adaptar a simulação
-          financeira e as futuras recomendações.
+          {status.message}
         </p>
 
-        <Alert title="Próxima etapa" variant="info" className="mt-6">
-          Na próxima implementação, você informará sua renda, despesas, dívidas,
-          meta financeira e prazo desejado.
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <Card variant="muted" padding="sm">
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Valor disponível por mês
+            </p>
+
+            <strong className="mt-1 block text-xl">
+              {formatCurrency(result.valorDisponivelPorMes)}
+            </strong>
+          </Card>
+
+          <Card variant="muted" padding="sm">
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Economia mensal necessária
+            </p>
+
+            <strong className="mt-1 block text-xl">
+              {formatCurrency(result.economiaMensalNecessaria)}
+            </strong>
+          </Card>
+        </div>
+
+        <Alert
+          title="Saldo após reservar para a meta"
+          variant={result.saldoAposReservaParaMeta >= 0 ? "success" : "warning"}
+          className="mt-4"
+        >
+          {formatCurrency(result.saldoAposReservaParaMeta)}
         </Alert>
 
-        <div className="mt-6">
-          <Button variant="secondary" onClick={handleRestartOnboarding}>
-            Refazer onboarding
+        <p className="mt-6 text-sm leading-6 text-[var(--color-text-muted)]">
+          Este resultado possui finalidade educativa e utiliza exclusivamente os
+          dados informados nesta simulação.
+        </p>
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <Button onClick={handleCreateAnotherSimulation}>
+            Criar nova simulação
+          </Button>
+
+          <Button variant="secondary" onClick={handleRestartFlow}>
+            Refazer perfil
           </Button>
         </div>
       </Card>
