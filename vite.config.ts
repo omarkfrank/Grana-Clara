@@ -1,17 +1,18 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
-/**
- * Configuração principal do Vite.
- *
- * Aqui conectamos:
- * - React: para suporte ao ecossistema React.
- * - Tailwind CSS: para estilização utilitária moderna.
- *
- * O objetivo é manter o projeto rápido, simples e com boa experiência
- * tanto em desenvolvimento quanto no build de produção.
- */
+const apiTarget = "http://127.0.0.1:8787";
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+
+  server: {
+    proxy: {
+      "/api": {
+        target: apiTarget,
+        changeOrigin: true,
+      },
+    },
+  },
 });
