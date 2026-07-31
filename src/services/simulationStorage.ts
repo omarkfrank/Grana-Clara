@@ -3,6 +3,7 @@ import {
   SIMULATION_STORAGE_KEY,
   SIMULATION_STORAGE_VERSION,
 } from "../constants/simulation";
+import { aiInsightsSchema } from "../schemas/aiInsightsSchema";
 import type {
   SimulationInput,
   SimulationResult,
@@ -11,17 +12,34 @@ import type {
 import type { OnboardingAnswers } from "../types/onboarding";
 import type { SavedSimulation } from "../types/simulation";
 
+import type { FinancialInsightsApiResponse } from "./aiInsightsApi";
+
+/**
+ * Envelope versionado utilizado para persistir as simulações.
+ *
+ * A versão permitirá realizar migrações caso a estrutura dos
+ * dados armazenados seja alterada futuramente.
+ */
 type StorageEnvelope = {
   version: number;
   simulations: SavedSimulation[];
 };
 
+/**
+ * Dados necessários para criar uma nova simulação.
+ *
+ * Identificador, data e versão do prompt são definidos
+ * internamente pelo serviço.
+ */
 type SaveSimulationData = {
   input: SimulationInput;
   result: SimulationResult;
   onboarding: OnboardingAnswers;
 };
 
+/**
+ * Status financeiros reconhecidos pela aplicação.
+ */
 const viabilityStatuses: readonly ViabilityStatus[] = [
   "viable",
   "needs_adjustments",
@@ -53,7 +71,7 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 /**
- * Verifica se o status encontrado no armazenamento é reconhecido.
+ * Verifica se o status recuperado do armazenamento é reconhecido.
  */
 function isViabilityStatus(value: unknown): value is ViabilityStatus {
   return (
@@ -65,9 +83,9 @@ function isViabilityStatus(value: unknown): value is ViabilityStatus {
 /**
  * Valida estruturalmente os dados financeiros de entrada.
  *
- * O localStorage pode ser alterado manualmente pelo usuário ou por
- * extensões do navegador. Por isso não devemos confiar cegamente
- * no conteúdo recuperado.
+ * O localStorage pode ser alterado manualmente pelo usuário,
+ * pelo navegador ou por extensões. Por isso, seu conteúdo
+ * precisa ser validado antes de ser utilizado pela aplicação.
  */
 function isSimulationInput(value: unknown): value is SimulationInput {
   if (!isRecord(value)) {
@@ -121,20 +139,36 @@ function isOnboardingAnswers(value: unknown): value is OnboardingAnswers {
 
 /**
  * Valida uma simulação recuperada do navegador.
+ *
+ * Os campos aiInsights e aiModel são opcionais para manter
+ * compatibilidade com simulações criadas antes da integração
+ * com a inteligência artificial.
  */
 function isSavedSimulation(value: unknown): value is SavedSimulation {
   if (!isRecord(value)) {
     return false;
   }
 
+  const hasValidAIInsights =
+    value.aiInsights === undefined ||
+    aiInsightsSchema.safeParse(value.aiInsights).success;
+
+  const hasValidAIModel =
+    value.aiModel === undefined ||
+    (typeof value.aiModel === "string" && value.aiModel.trim().length > 0);
+
   return (
     typeof value.id === "string" &&
     value.id.length > 0 &&
     typeof value.createdAt === "string" &&
+    value.createdAt.length > 0 &&
     isSimulationInput(value.input) &&
     isSimulationResult(value.result) &&
     isOnboardingAnswers(value.onboarding) &&
-    typeof value.promptVersion === "string"
+    typeof value.promptVersion === "string" &&
+    value.promptVersion.length > 0 &&
+    hasValidAIInsights &&
+    hasValidAIModel
   );
 }
 
@@ -154,8 +188,8 @@ function isStorageEnvelope(value: unknown): value is StorageEnvelope {
 }
 
 /**
- * Obtém o localStorage quando o código está sendo executado
- * no navegador.
+ * Obtém o localStorage somente quando o código está sendo
+ * executado no navegador.
  */
 function getBrowserStorage(): Storage | null {
   if (typeof window === "undefined") {
@@ -166,11 +200,12 @@ function getBrowserStorage(): Storage | null {
 }
 
 /**
- * Retorna um envelope vazio e válido.
+ * Retorna um envelope vazio e estruturalmente válido.
  */
 function createEmptyEnvelope(): StorageEnvelope {
   return {
     version: SIMULATION_STORAGE_VERSION,
+
     simulations: [],
   };
 }
@@ -179,7 +214,8 @@ function createEmptyEnvelope(): StorageEnvelope {
  * Recupera e valida os dados persistidos.
  *
  * Se o armazenamento estiver vazio, corrompido ou em uma versão
- * incompatível, retornamos uma coleção vazia sem quebrar a interface.
+ * incompatível, retornamos uma coleção vazia sem interromper
+ * o funcionamento da interface.
  */
 function readStorageEnvelope(): StorageEnvelope {
   const storage = getBrowserStorage();
@@ -233,7 +269,7 @@ function writeStorageEnvelope(envelope: StorageEnvelope): void {
 }
 
 /**
- * Gera um identificador único para a simulação.
+ * Gera um identificador único para uma nova simulação.
  */
 function createSimulationId(): string {
   if (
@@ -251,7 +287,7 @@ function createSimulationId(): string {
 }
 
 /**
- * Lista todas as simulações, começando pela mais recente.
+ * Lista todas as simulações começando pela mais recente.
  */
 export function getAllSimulations(): SavedSimulation[] {
   const { simulations } = readStorageEnvelope();
@@ -264,7 +300,7 @@ export function getAllSimulations(): SavedSimulation[] {
 }
 
 /**
- * Recupera uma simulação específica pelo ID.
+ * Recupera uma simulação específica pelo identificador.
  */
 export function getSimulationById(
   simulationId: string,
@@ -277,6 +313,9 @@ export function getSimulationById(
 
 /**
  * Cria e salva uma nova simulação.
+ *
+ * Esta função deve ser utilizada somente na criação inicial.
+ * Atualizações de registros existentes possuem funções próprias.
  */
 export function saveSimulation({
   input,
@@ -287,15 +326,19 @@ export function saveSimulation({
 
   const newSimulation: SavedSimulation = {
     id: createSimulationId(),
+
     createdAt: new Date().toISOString(),
+
     input,
     result,
     onboarding,
+
     promptVersion: CURRENT_PROMPT_VERSION,
   };
 
   writeStorageEnvelope({
     version: SIMULATION_STORAGE_VERSION,
+
     simulations: [newSimulation, ...simulations],
   });
 
@@ -303,9 +346,59 @@ export function saveSimulation({
 }
 
 /**
- * Exclui uma simulação pelo ID.
+ * Adiciona os insights gerados pela IA a uma simulação existente.
  *
- * Retorna true quando um registro foi removido.
+ * Diferentemente de saveSimulation, esta função:
+ * - Não gera um novo identificador.
+ * - Não altera a data de criação.
+ * - Não cria uma segunda entrada no histórico.
+ * - Atualiza exatamente o registro utilizado pela página atual.
+ */
+export function updateSimulationAIInsights(
+  simulationId: string,
+  aiResponse: FinancialInsightsApiResponse,
+): SavedSimulation {
+  const simulations = getAllSimulations();
+
+  let updatedSimulation: SavedSimulation | null = null;
+
+  const updatedSimulations = simulations.map((simulation) => {
+    if (simulation.id !== simulationId) {
+      return simulation;
+    }
+
+    updatedSimulation = {
+      ...simulation,
+
+      aiInsights: aiResponse.insights,
+
+      aiModel: aiResponse.model,
+
+      promptVersion: aiResponse.promptVersion,
+    };
+
+    return updatedSimulation;
+  });
+
+  if (!updatedSimulation) {
+    throw new SimulationStorageError(
+      "Não foi possível atualizar uma simulação inexistente.",
+    );
+  }
+
+  writeStorageEnvelope({
+    version: SIMULATION_STORAGE_VERSION,
+
+    simulations: updatedSimulations,
+  });
+
+  return updatedSimulation;
+}
+
+/**
+ * Exclui uma simulação pelo identificador.
+ *
+ * Retorna true quando um registro foi efetivamente removido.
  */
 export function deleteSimulation(simulationId: string): boolean {
   const simulations = getAllSimulations();
@@ -320,6 +413,7 @@ export function deleteSimulation(simulationId: string): boolean {
 
   writeStorageEnvelope({
     version: SIMULATION_STORAGE_VERSION,
+
     simulations: remainingSimulations,
   });
 
