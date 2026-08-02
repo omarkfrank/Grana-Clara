@@ -3,14 +3,16 @@
 /*
   Arquivo global de estilos do projeto Grana Clara.
 
-  Aqui ficam:
-  - Design tokens iniciais.
-  - Variáveis de tema claro e escuro.
-  - Configurações globais do body.
-  - Pequenos ajustes de acessibilidade e experiência visual.
+  Responsabilidades:
+  - Centralizar os design tokens.
+  - Definir os temas claro e escuro.
+  - Configurar tipografia e cores globais.
+  - Garantir foco visível para navegação por teclado.
+  - Respeitar preferências de redução de movimento.
+  - Oferecer suporte ao link "Pular para o conteúdo".
 
-  A escolha por CSS variables facilita a manutenção futura,
-  porque conseguimos trocar cores do tema sem reescrever componentes.
+  A utilização de CSS variables facilita a manutenção porque
+  permite alterar a identidade visual sem reescrever componentes.
 */
 
 :root {
@@ -37,6 +39,14 @@
   --color-danger-soft: #fee2e2;
 
   --color-border: #e2e8f0;
+
+  /*
+    Cor utilizada pelo indicador global de foco.
+
+    Ela precisa possuir contraste suficiente contra superfícies
+    claras e sinalizar claramente qual elemento está ativo.
+  */
+  --color-focus-ring: #2563eb;
 }
 
 .dark {
@@ -63,9 +73,21 @@
   --color-danger-soft: #7f1d1d;
 
   --color-border: #334155;
+
+  /*
+    No tema escuro, utilizamos um azul mais claro para manter
+    o foco visível contra fundos escuros.
+  */
+  --color-focus-ring: #60a5fa;
 }
 
-* {
+/*
+  O box-sizing em border-box torna os cálculos de largura e altura
+  previsíveis em todos os componentes.
+*/
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -73,10 +95,14 @@ html {
   scroll-behavior: smooth;
 }
 
+/*
+  Configurações fundamentais do documento.
+*/
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+
   font-family:
     Inter,
     ui-sans-serif,
@@ -85,16 +111,143 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
   background: var(--color-background);
   color: var(--color-text);
+
   transition:
     background-color 300ms ease,
     color 300ms ease;
 }
 
+/*
+  Os controles de formulário devem herdar a mesma tipografia
+  utilizada pelo restante da aplicação.
+*/
 button,
 input,
 textarea,
 select {
   font: inherit;
+}
+
+/*
+  Impede que textos ou URLs extensas ultrapassem a largura
+  disponível em telas menores.
+*/
+p,
+li,
+blockquote,
+a {
+  overflow-wrap: anywhere;
+}
+
+/*
+  Estilo global de foco visível.
+
+  O seletor :focus-visible evita exibir o contorno durante
+  interações comuns com o mouse, mas mantém uma indicação clara
+  para navegação por teclado.
+*/
+:where(
+  a,
+  button,
+  input,
+  textarea,
+  select,
+  summary,
+  [role="button"],
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+/*
+  Mantém a indicação semântica de controles indisponíveis.
+*/
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
+/*
+  Link de acesso rápido para pessoas que navegam por teclado.
+
+  Ele permanece fora da área visível até receber foco. Ao pressionar
+  Tab pela primeira vez, o link aparece e permite ignorar o cabeçalho.
+*/
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 9999;
+
+  max-width: calc(100vw - 1.5rem);
+  padding: 0.75rem 1rem;
+
+  border: 2px solid var(--color-primary);
+  border-radius: 0.75rem;
+
+  background: var(--color-surface);
+  color: var(--color-text);
+
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+
+  box-shadow:
+    0 10px 15px -3px rgb(15 23 42 / 0.18),
+    0 4px 6px -4px rgb(15 23 42 / 0.18);
+
+  transform: translateY(-200%);
+  transition:
+    transform 180ms ease,
+    background-color 300ms ease,
+    color 300ms ease;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+/*
+  Melhora a identificação visual de textos selecionados.
+*/
+::selection {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
+
+/*
+  Respeita pessoas que configuraram o sistema operacional para
+  reduzir animações e transições.
+
+  Os elementos permanecem funcionais, mas mudanças visuais passam
+  a acontecer praticamente de forma instantânea.
+*/
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .skip-link {
+    transition: none;
+  }
 }
