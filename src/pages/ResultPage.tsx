@@ -21,30 +21,30 @@ import { formatDateTime } from "../utils/formatDateTime";
  * O identificador presente na URL é utilizado para recuperar
  * a simulação correspondente no armazenamento local.
  *
- * Além do resultado matemático da simulação, esta página também
- * apresenta a análise educacional personalizada gerada pela IA.
+ * Além dos cálculos financeiros, a página apresenta:
+ * - O diagnóstico gerado pela inteligência artificial.
+ * - Ações relacionadas à simulação.
+ * - Um acesso direto ao chat contextualizado.
  */
 export function ResultPage() {
   const navigate = useNavigate();
+
   const { simulationId } = useParams();
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   /**
-   * Recupera a simulação pelo identificador presente na rota.
+   * Recupera a simulação utilizando o identificador da rota.
    *
-   * Caso o identificador esteja ausente ou a simulação não exista,
-   * a página apresenta um estado de resultado não encontrado.
+   * Caso o ID não exista ou a simulação tenha sido excluída,
+   * a página apresenta um estado de conteúdo não encontrado.
    */
   const simulation = simulationId ? getSimulationById(simulationId) : null;
 
   /**
-   * Remove permanentemente a simulação do histórico local.
-   *
-   * Antes da exclusão, solicitamos uma confirmação explícita
-   * para evitar a perda acidental dos dados.
+   * Exclui a simulação atual após confirmação explícita.
    */
-  function handleDeleteSimulation() {
+  function handleDeleteSimulation(): void {
     if (!simulation) {
       return;
     }
@@ -59,6 +59,7 @@ export function ResultPage() {
 
     try {
       deleteSimulation(simulation.id);
+
       navigate("/historico");
     } catch (error) {
       console.error(error);
@@ -76,9 +77,9 @@ export function ResultPage() {
         <Card padding="lg" className="mx-auto max-w-2xl">
           <Badge variant="danger">Simulação não encontrada</Badge>
 
-          <h2 className="mt-4 text-2xl font-bold tracking-tight">
+          <h1 className="mt-4 text-2xl font-bold tracking-tight">
             Não encontramos esse resultado.
-          </h2>
+          </h1>
 
           <p className="mt-3 leading-7 text-[var(--color-text-muted)]">
             A simulação pode ter sido excluída, o identificador pode estar
@@ -98,8 +99,7 @@ export function ResultPage() {
   }
 
   /**
-   * Recupera os textos e estilos correspondentes ao status
-   * de viabilidade calculado pela aplicação.
+   * Recupera a configuração visual e textual do status calculado.
    */
   const status = viabilityStatusConfiguration[simulation.result.status];
 
@@ -111,9 +111,9 @@ export function ResultPage() {
             <div>
               <Badge variant={status.badgeVariant}>{status.label}</Badge>
 
-              <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+              <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
                 {simulation.input.meta}
-              </h2>
+              </h1>
             </div>
 
             <p className="text-sm text-[var(--color-text-muted)]">
@@ -214,17 +214,44 @@ export function ResultPage() {
         </Card>
 
         {/*
-         * Painel responsável por:
-         * - Gerar automaticamente os insights quando ainda não existem.
-         * - Exibir o estado de carregamento.
-         * - Tratar indisponibilidades da IA.
-         * - Permitir uma nova tentativa.
-         * - Persistir os insights no histórico local.
-         *
-         * Quando a simulação já possui aiInsights, nenhuma nova
-         * chamada ao Gemini é realizada.
+         * Painel responsável pela geração, apresentação e
+         * persistência dos insights financeiros personalizados.
          */}
         <AIInsightsPanel key={simulation.id} simulation={simulation} />
+
+        {/*
+         * Chamada para ação do chat.
+         *
+         * A conversa utiliza o mesmo identificador da simulação,
+         * permitindo que o backend receba todo o contexto
+         * financeiro já calculado e persistido.
+         */}
+        <Card variant="outline" padding="lg">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <Badge variant="success">Chat contextualizado</Badge>
+
+              <h2 className="mt-3 text-xl font-bold tracking-tight">
+                Ainda ficou com alguma dúvida?
+              </h2>
+
+              <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--color-text-muted)]">
+                Converse com o Educador Financeiro sobre seu orçamento, sua
+                meta, o prazo planejado ou os próximos passos sugeridos.
+              </p>
+            </div>
+
+            <ButtonLink to={`/chat/${simulation.id}`} className="shrink-0">
+              Conversar com o Educador
+            </ButtonLink>
+          </div>
+        </Card>
+
+        <p className="text-center text-xs leading-5 text-[var(--color-text-muted)]">
+          As orientações apresentadas possuem finalidade educativa e não
+          substituem avaliação financeira, contábil, jurídica ou profissional
+          personalizada.
+        </p>
       </div>
     </section>
   );
