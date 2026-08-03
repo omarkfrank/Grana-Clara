@@ -1,8 +1,9 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, type RouteObject } from "react-router";
 
 import { AppLayout } from "../layouts/AppLayout";
 import { HistoryPage } from "../pages/HistoryPage";
 import { HomePage } from "../pages/HomePage";
+import { NotFoundPage } from "../pages/NotFoundPage";
 import { ResultPage } from "../pages/ResultPage";
 import { SimulationPage } from "../pages/SimulationPage";
 
@@ -11,10 +12,10 @@ import { SimulationPage } from "../pages/SimulationPage";
  * - Atualizar o título da aba.
  * - Anunciar a página carregada.
  *
- * Manter essas informações junto das rotas reduz duplicações
- * e facilita futuras alterações na estrutura de navegação.
+ * A exportação permite validar a configuração em testes sem
+ * duplicar títulos ou informações das rotas.
  */
-const routeHandles = {
+export const routeHandles = {
   application: {
     pageTitle: "Grana Clara",
     documentTitle: "Grana Clara — Educação financeira simples e inteligente",
@@ -45,19 +46,20 @@ const routeHandles = {
     pageTitle: "Histórico de simulações",
     documentTitle: "Histórico de simulações | Grana Clara",
   },
+
+  notFound: {
+    pageTitle: "Página não encontrada",
+    documentTitle: "Página não encontrada | Grana Clara",
+  },
 } as const;
 
 /**
- * Roteador principal do Grana Clara.
+ * Configuração declarativa das rotas.
  *
- * As páginas essenciais da navegação inicial permanecem
- * disponíveis imediatamente.
- *
- * A página de chat é carregada de maneira assíncrona porque
- * possui dependências mais pesadas, como o renderizador de
- * Markdown utilizado nas respostas do Educador Financeiro.
+ * Manter essa estrutura exportada permite utilizar matchRoutes
+ * nos testes sem montar toda a aplicação no navegador.
  */
-export const appRouter = createBrowserRouter([
+export const appRoutes = [
   {
     path: "/",
 
@@ -93,12 +95,8 @@ export const appRouter = createBrowserRouter([
       /**
        * Rota carregada sob demanda.
        *
-       * O navegador somente solicita o código da ChatPage
-       * quando a pessoa acessa /chat/:simulationId.
-       *
-       * O handle permanece disponível no roteador principal,
-       * permitindo que o título e o anúncio da página sejam
-       * definidos sem carregar antecipadamente o componente.
+       * O navegador somente solicita o código da ChatPage quando
+       * a pessoa acessa uma conversa vinculada a uma simulação.
        */
       {
         path: "chat/:simulationId",
@@ -121,6 +119,25 @@ export const appRouter = createBrowserRouter([
 
         handle: routeHandles.history,
       },
+
+      /**
+       * A rota coringa deve permanecer por último.
+       *
+       * Ela captura qualquer endereço que não corresponda às
+       * páginas cadastradas anteriormente.
+       */
+      {
+        path: "*",
+
+        element: <NotFoundPage />,
+
+        handle: routeHandles.notFound,
+      },
     ],
   },
-]);
+] satisfies RouteObject[];
+
+/**
+ * Roteador utilizado pela aplicação no navegador.
+ */
+export const appRouter = createBrowserRouter(appRoutes);

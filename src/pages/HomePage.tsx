@@ -3,6 +3,12 @@ import { ButtonLink } from "../components/common/ButtonLink";
 import { Card } from "../components/common/Card";
 import { formatCurrency } from "../utils/formatCurrency";
 
+/**
+ * Métricas fictícias utilizadas exclusivamente para demonstrar
+ * como um diagnóstico financeiro será apresentado.
+ *
+ * Esses valores não representam dados reais da pessoa usuária.
+ */
 const exampleMetrics = [
   {
     label: "Valor disponível por mês",
@@ -12,33 +18,47 @@ const exampleMetrics = [
     label: "Economia necessária",
     value: 900,
   },
-];
+] as const;
 
 /**
  * Página inicial do Grana Clara.
  *
- * Esta página apresenta o valor principal da aplicação:
- * ajudar o usuário a transformar dados financeiros em clareza,
- * diagnóstico e próximos passos com apoio de IA.
+ * Apresenta:
+ * - A proposta principal da aplicação.
+ * - Os caminhos para iniciar ou consultar simulações.
+ * - Um exemplo visual de diagnóstico financeiro.
  */
 export function HomePage() {
   return (
-    <section className="grid gap-8 py-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
+    <section
+      aria-labelledby="home-page-title"
+      className="grid gap-8 py-8 md:grid-cols-[1.1fr_0.9fr] md:items-center"
+    >
       <div className="space-y-6">
         <Badge variant="primary">Planejamento financeiro mobile-first</Badge>
 
-        <div className="space-y-4">
-          <h2 className="text-4xl font-bold tracking-tight md:text-5xl">
+        <header className="space-y-4">
+          <h1
+            id="home-page-title"
+            className="text-4xl font-bold tracking-tight md:text-5xl"
+          >
             Entenda sua grana com mais clareza.
-          </h2>
+          </h1>
 
           <p className="max-w-2xl text-lg leading-8 text-[var(--color-text-muted)]">
             Simule uma meta financeira, descubra se ela é viável e receba
             recomendações personalizadas com apoio de inteligência artificial.
           </p>
-        </div>
+        </header>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
+        {/*
+         * O elemento nav comunica que os links representam
+         * os principais caminhos disponíveis nesta página.
+         */}
+        <nav
+          aria-label="Ações principais"
+          className="flex flex-col gap-3 sm:flex-row"
+        >
           <ButtonLink to="/simulacao" className="w-full sm:w-auto">
             Começar simulação
           </ButtonLink>
@@ -50,28 +70,43 @@ export function HomePage() {
           >
             Ver histórico
           </ButtonLink>
-        </div>
+        </nav>
       </div>
 
-      <Card padding="lg">
-        <p className="mb-4 text-sm font-semibold text-[var(--color-text-muted)]">
-          Exemplo de diagnóstico
-        </p>
+      {/*
+       * O diagnóstico é um conteúdo complementar à apresentação
+       * principal, por isso utiliza o elemento aside.
+       */}
+      <aside aria-labelledby="example-diagnosis-title">
+        <Card padding="lg">
+          <h2
+            id="example-diagnosis-title"
+            className="mb-4 text-sm font-semibold text-[var(--color-text-muted)]"
+          >
+            Exemplo de diagnóstico
+          </h2>
 
-        <div className="space-y-4">
-          {exampleMetrics.map((metric) => (
-            <Card key={metric.label} variant="muted" padding="sm">
-              <p className="text-sm text-[var(--color-text-muted)]">
-                {metric.label}
-              </p>
+          {/*
+           * dl, dt e dd associam semanticamente cada indicador
+           * financeiro ao seu respectivo valor.
+           */}
+          <dl className="space-y-4">
+            {exampleMetrics.map((metric) => (
+              <Card key={metric.label} variant="muted" padding="sm">
+                <div>
+                  <dt className="text-sm text-[var(--color-text-muted)]">
+                    {metric.label}
+                  </dt>
 
-              <strong className="mt-1 block text-2xl">
-                {formatCurrency(metric.value)}
-              </strong>
-            </Card>
-          ))}
+                  <dd className="mt-1 text-2xl font-bold">
+                    {formatCurrency(metric.value)}
+                  </dd>
+                </div>
+              </Card>
+            ))}
+          </dl>
 
-          <Card variant="outline" padding="sm">
+          <Card variant="outline" padding="sm" className="mt-4">
             <Badge variant="success">Meta viável</Badge>
 
             <p className="mt-3 text-sm text-[var(--color-text-muted)]">
@@ -79,8 +114,8 @@ export function HomePage() {
               para sua meta.
             </p>
           </Card>
-        </div>
-      </Card>
+        </Card>
+      </aside>
     </section>
   );
 }
