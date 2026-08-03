@@ -16,7 +16,7 @@ type NumberInputProps = Omit<
 /**
  * Campo numérico reutilizável.
  *
- * Será utilizado inicialmente para o prazo da meta em meses.
+ * Utilizado inicialmente para o prazo da meta em meses.
  */
 export function NumberInput({
   id,
@@ -28,11 +28,13 @@ export function NumberInput({
   className,
   ...props
 }: NumberInputProps) {
-  const descriptionId = error
-    ? `${id}-error`
-    : helperText
-      ? `${id}-helper`
-      : undefined;
+  const helperId = `${id}-helper`;
+  const errorId = `${id}-error`;
+
+  const describedBy =
+    [helperText ? helperId : null, error ? errorId : null]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   return (
     <div className="space-y-2">
@@ -51,13 +53,17 @@ export function NumberInput({
 
           onValueChange(Number.isNaN(parsedValue) ? null : parsedValue);
         }}
-        aria-invalid={Boolean(error)}
-        aria-describedby={descriptionId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        aria-errormessage={error ? errorId : undefined}
         className={clsx(
           "min-h-12 w-full rounded-xl border bg-[var(--color-surface)] px-4 py-3",
-          "text-[var(--color-text)] outline-none transition-colors duration-200",
+          "text-[var(--color-text)] outline-none",
+          "transition-[border-color,box-shadow,background-color] duration-200",
           "placeholder:text-[var(--color-text-muted)]",
-          "focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-soft)]",
+          "focus:border-[var(--color-primary)]",
+          "focus:ring-2 focus:ring-[var(--color-focus-ring)]",
+          "motion-reduce:transition-none",
           {
             "border-[var(--color-border)]": !error,
             "border-[var(--color-danger)]": error,
@@ -66,23 +72,22 @@ export function NumberInput({
         )}
       />
 
-      {error ? (
+      {helperText && (
         <p
-          id={`${id}-error`}
-          role="alert"
-          className="text-sm text-[var(--color-danger)]"
+          id={helperId}
+          className="text-sm leading-6 text-[var(--color-text-muted)]"
+        >
+          {helperText}
+        </p>
+      )}
+
+      {error && (
+        <p
+          id={errorId}
+          className="text-sm font-medium leading-6 text-[var(--color-danger)]"
         >
           {error}
         </p>
-      ) : (
-        helperText && (
-          <p
-            id={`${id}-helper`}
-            className="text-sm text-[var(--color-text-muted)]"
-          >
-            {helperText}
-          </p>
-        )
       )}
     </div>
   );

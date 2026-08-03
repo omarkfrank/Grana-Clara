@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { Alert } from "../components/common/Alert";
@@ -26,6 +26,22 @@ export function SimulationPage() {
     useState<OnboardingAnswers | null>(null);
 
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const saveErrorContainerRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Caso a persistência falhe, o foco é direcionado para a
+   * mensagem apresentada no início do formulário.
+   */
+  useEffect(() => {
+    if (!saveError) {
+      return;
+    }
+
+    saveErrorContainerRef.current?.focus({
+      preventScroll: false,
+    });
+  }, [saveError]);
 
   function handleCompleteOnboarding(answers: OnboardingAnswers) {
     setSaveError(null);
@@ -69,7 +85,11 @@ export function SimulationPage() {
   return (
     <section className="space-y-4 py-4">
       {saveError && (
-        <div className="mx-auto max-w-2xl">
+        <div
+          ref={saveErrorContainerRef}
+          tabIndex={-1}
+          className="mx-auto max-w-2xl scroll-mt-24 rounded-2xl"
+        >
           <Alert title="Não foi possível concluir" variant="danger">
             {saveError}
           </Alert>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 
 import { onboardingQuestions } from "../../constants/onboardingQuestions";
 import type {
@@ -33,7 +33,8 @@ function isOnboardingComplete(
  * - Controlar a pergunta atual.
  * - Permitir navegação entre as etapas.
  * - Bloquear o avanço sem resposta.
- * - Entregar as respostas completas ao componente pai.
+ * - Entregar respostas completas ao componente pai.
+ * - Preservar navegação semântica por formulário e teclado.
  */
 export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -61,8 +62,10 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     setCurrentStepIndex((currentIndex) => Math.max(0, currentIndex - 1));
   }
 
-  function handleContinue() {
-    if (!currentAnswer) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (currentAnswer === undefined) {
       return;
     }
 
@@ -80,41 +83,45 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   }
 
   return (
-    <FormStep
-      currentStep={currentStepIndex + 1}
-      totalSteps={onboardingQuestions.length}
-      eyebrow={currentQuestion.block}
-      title={currentQuestion.title}
-      description={currentQuestion.description}
-    >
-      <fieldset className="space-y-3">
-        <legend className="sr-only">{currentQuestion.title}</legend>
+    <form onSubmit={handleSubmit}>
+      <FormStep
+        currentStep={currentStepIndex + 1}
+        totalSteps={onboardingQuestions.length}
+        eyebrow={currentQuestion.block}
+        title={currentQuestion.title}
+        description={currentQuestion.description}
+        headingLevel="h1"
+      >
+        <fieldset className="space-y-3">
+          <legend className="sr-only">{currentQuestion.title}</legend>
 
-        {currentQuestion.options.map((option, optionIndex) => {
-          const optionId = `${currentQuestion.id}-${optionIndex}`;
+          {currentQuestion.options.map((option, optionIndex) => {
+            const optionId = `${currentQuestion.id}-${optionIndex}`;
 
-          return (
-            <OptionCard
-              key={option.value}
-              id={optionId}
-              name={currentQuestion.id}
-              value={option.value}
-              label={option.label}
-              description={option.description}
-              checked={currentAnswer === option.value}
-              onSelect={handleSelect}
-            />
-          );
-        })}
-      </fieldset>
+            return (
+              <OptionCard
+                key={option.value}
+                id={optionId}
+                name={currentQuestion.id}
+                value={option.value}
+                label={option.label}
+                description={option.description}
+                checked={currentAnswer === option.value}
+                required
+                onSelect={handleSelect}
+              />
+            );
+          })}
+        </fieldset>
 
-      <StepNavigation
-        canGoBack={currentStepIndex > 0}
-        canContinue={currentAnswer !== undefined}
-        continueLabel={isLastStep ? "Concluir onboarding" : "Continuar"}
-        onBack={handleBack}
-        onContinue={handleContinue}
-      />
-    </FormStep>
+        <StepNavigation
+          canGoBack={currentStepIndex > 0}
+          canContinue={currentAnswer !== undefined}
+          continueLabel={isLastStep ? "Concluir onboarding" : "Continuar"}
+          continueType="submit"
+          onBack={handleBack}
+        />
+      </FormStep>
+    </form>
   );
 }
