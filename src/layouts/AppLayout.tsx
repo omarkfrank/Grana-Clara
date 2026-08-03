@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+
 import {
   Link,
   Outlet,
@@ -7,6 +8,7 @@ import {
   useNavigation,
 } from "react-router";
 
+import { BrandMark } from "../components/brand/BrandMark";
 import { ThemeToggle } from "../components/common/ThemeToggle";
 
 /**
@@ -62,6 +64,7 @@ function getCurrentRouteHandle(
  * Responsabilidades:
  * - Definir a estrutura visual compartilhada pelas páginas.
  * - Exibir cabeçalho, conteúdo principal e rodapé.
+ * - Apresentar a identidade oficial do Grana Clara.
  * - Informar quando uma nova rota está sendo carregada.
  * - Atualizar o título da aba conforme a rota.
  * - Direcionar o foco para o conteúdo após navegações internas.
@@ -73,7 +76,9 @@ function getCurrentRouteHandle(
  */
 export function AppLayout() {
   const navigation = useNavigation();
+
   const location = useLocation();
+
   const matches = useMatches();
 
   /**
@@ -121,6 +126,7 @@ export function AppLayout() {
   useEffect(() => {
     if (isInitialRender.current) {
       isInitialRender.current = false;
+
       return;
     }
 
@@ -156,24 +162,28 @@ export function AppLayout() {
           {/*
            * A marca funciona como acesso à página inicial.
            *
-           * Utilizamos Link para preservar a navegação interna
-           * sem recarregar todo o documento.
+           * O nome acessível completo permanece no Link, enquanto
+           * o SVG é ignorado por tecnologias assistivas.
            */}
           <Link
             to="/"
             aria-label="Grana Clara — ir para a página inicial"
-            className="inline-block rounded-md"
+            className="group inline-flex items-center gap-3 rounded-xl p-1"
           >
-            <span className="block text-sm font-medium text-[var(--color-text-muted)]">
-              Educador financeiro com IA
-            </span>
+            <BrandMark className="h-11 w-11 shrink-0 transition-transform duration-200 group-hover:scale-105 motion-reduce:transition-none" />
 
-            {/*
-             * O nome da marca não utiliza h1 porque cada página
-             * possui seu próprio título principal.
-             */}
-            <span className="block text-xl font-bold tracking-tight">
-              Grana Clara
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-[var(--color-text-muted)]">
+                Educador financeiro com IA
+              </span>
+
+              {/*
+               * O nome da marca não utiliza h1 porque cada página
+               * possui seu próprio título principal.
+               */}
+              <span className="block text-xl font-bold tracking-tight">
+                Grana Clara
+              </span>
             </span>
           </Link>
 
