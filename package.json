@@ -1,8 +1,27 @@
 {
   "name": "grana-clara",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Aplicação web mobile-first de educação financeira com simulações, histórico, insights e chat contextualizado com inteligência artificial.",
+  "keywords": [
+    "educacao-financeira",
+    "planejamento-financeiro",
+    "inteligencia-artificial",
+    "react",
+    "typescript",
+    "vite",
+    "gemini"
+  ],
+  "author": "Mark Frank",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omarkfrank/Grana-Clara.git"
+  },
+  "bugs": {
+    "url": "https://github.com/omarkfrank/Grana-Clara/issues"
+  },
   "type": "module",
+  "packageManager": "npm@11.7.0",
   "scripts": {
     "dev": "concurrently -k -n WEB,API \"npm:dev:web\" \"npm:dev:api\"",
     "dev:web": "vite",
@@ -13,7 +32,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run lint && npm run test && npm run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "preview:full": "concurrently -k -n WEB,API \"npm:preview\" \"npm:start:api\""
   },
   "dependencies": {
     "@google/genai": "^2.15.0",
