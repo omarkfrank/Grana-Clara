@@ -2,6 +2,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   useEffect,
+  useId,
   useRef,
   useState,
 } from "react";
@@ -128,8 +129,8 @@ function getFriendlyErrorMessage(error: unknown): string {
 /**
  * Converte as mensagens persistidas para o formato enviado à API.
  *
- * O serviço HTTP selecionará somente as doze mensagens
- * mais recentes antes de enviar o histórico ao backend.
+ * O serviço HTTP selecionará somente as mensagens mais recentes
+ * antes de enviar o histórico ao backend.
  */
 function buildChatHistory(
   messages: SavedChatMessage[],
@@ -141,29 +142,27 @@ function buildChatHistory(
 }
 
 /**
- * Renderiza o conteúdo Markdown produzido pelo Educador
- * Financeiro.
+ * Renderiza o conteúdo Markdown produzido pelo Educador.
  *
- * Não utilizamos suporte a HTML bruto. Elementos como listas,
- * destaques e links são convertidos somente pelos componentes
- * seguros definidos abaixo.
+ * HTML bruto não é habilitado. A hierarquia visual recebida da
+ * IA também é adaptada para não criar outros títulos h1 na página.
  */
 function AssistantMarkdown({ content }: { content: string }) {
   return (
     <ReactMarkdown
       components={{
         h1: ({ children }) => (
-          <h1 className="mb-3 mt-4 text-lg font-bold first:mt-0">{children}</h1>
+          <h3 className="mb-3 mt-4 text-lg font-bold first:mt-0">{children}</h3>
         ),
 
         h2: ({ children }) => (
-          <h2 className="mb-2 mt-4 text-base font-bold first:mt-0">
+          <h4 className="mb-2 mt-4 text-base font-bold first:mt-0">
             {children}
-          </h2>
+          </h4>
         ),
 
         h3: ({ children }) => (
-          <h3 className="mb-2 mt-3 font-semibold first:mt-0">{children}</h3>
+          <h5 className="mb-2 mt-3 font-semibold first:mt-0">{children}</h5>
         ),
 
         p: ({ children }) => (
@@ -181,7 +180,7 @@ function AssistantMarkdown({ content }: { content: string }) {
         li: ({ children }) => <li className="pl-1">{children}</li>,
 
         strong: ({ children }) => (
-          <strong className="font-semibold text-slate-950 dark:text-white">
+          <strong className="font-semibold text-[var(--color-text)]">
             {children}
           </strong>
         ),
@@ -189,7 +188,7 @@ function AssistantMarkdown({ content }: { content: string }) {
         em: ({ children }) => <em className="italic">{children}</em>,
 
         blockquote: ({ children }) => (
-          <blockquote className="my-3 border-l-4 border-emerald-500 pl-4 italic text-[var(--color-text-muted)]">
+          <blockquote className="my-3 border-l-4 border-[var(--color-primary)] pl-4 italic text-[var(--color-text-muted)]">
             {children}
           </blockquote>
         ),
@@ -199,7 +198,7 @@ function AssistantMarkdown({ content }: { content: string }) {
             href={href}
             target="_blank"
             rel="noreferrer"
-            className="font-medium text-emerald-700 underline decoration-emerald-500/50 underline-offset-2 hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200"
+            className="font-medium text-[var(--color-primary)] underline decoration-current/50 underline-offset-2"
           >
             {children}
           </a>
@@ -217,9 +216,7 @@ function AssistantMarkdown({ content }: { content: string }) {
           </code>
         ),
 
-        hr: () => (
-          <hr className="my-4 border-slate-300 dark:border-slate-700" />
-        ),
+        hr: () => <hr className="my-4 border-[var(--color-border)]" />,
       }}
     >
       {content}
@@ -230,8 +227,8 @@ function AssistantMarkdown({ content }: { content: string }) {
 /**
  * Renderiza uma mensagem da conversa.
  *
- * As mensagens da pessoa usuária permanecem como texto simples.
- * Somente as respostas do Educador utilizam Markdown.
+ * As perguntas permanecem como texto simples. Somente as respostas
+ * do Educador utilizam Markdown.
  */
 function ChatMessageBubble({ message }: { message: SavedChatMessage }) {
   const isUserMessage = message.role === "user";
@@ -243,19 +240,18 @@ function ChatMessageBubble({ message }: { message: SavedChatMessage }) {
   return (
     <div className={isUserMessage ? "flex justify-end" : "flex justify-start"}>
       <article
+        aria-label={`Mensagem de ${author}`}
         className={[
           "max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 sm:max-w-[82%]",
           isUserMessage
-            ? "rounded-br-md bg-emerald-600 text-white"
-            : "rounded-bl-md border border-slate-200 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200",
+            ? "rounded-br-md bg-[var(--color-primary)] text-white"
+            : "rounded-bl-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]",
         ].join(" ")}
       >
         <header
           className={[
             "mb-2 flex flex-wrap items-center gap-x-2 text-xs",
-            isUserMessage
-              ? "text-emerald-50"
-              : "text-[var(--color-text-muted)]",
+            isUserMessage ? "text-white/85" : "text-[var(--color-text-muted)]",
           ].join(" ")}
         >
           <strong>{author}</strong>
@@ -277,11 +273,12 @@ function ChatMessageBubble({ message }: { message: SavedChatMessage }) {
 
 /**
  * Conversa associada a uma simulação válida.
- *
- * As mensagens são carregadas do localStorage somente na
- * inicialização deste componente.
  */
 function ChatConversation({ simulation }: ChatConversationProps) {
+  const conversationTitleId = useId();
+  const questionCounterId = useId();
+  const questionInstructionsId = useId();
+
   const [messages, setMessages] = useState<SavedChatMessage[]>(() =>
     getChatMessages(simulation.id),
   );
@@ -296,37 +293,129 @@ function ChatConversation({ simulation }: ChatConversationProps) {
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const [errorAnnouncementKey, setErrorAnnouncementKey] = useState(0);
+
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
 
-  /**
-   * Elemento invisível localizado no final da conversa.
-   *
-   * Ele é utilizado como destino para a rolagem automática.
-   */
+  const [storageWarningKey, setStorageWarningKey] = useState(0);
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const questionInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const errorContainerRef = useRef<HTMLDivElement | null>(null);
+  const storageWarningContainerRef = useRef<HTMLDivElement | null>(null);
+  const emptyConversationRef = useRef<HTMLDivElement | null>(null);
+
+  const shouldFocusEmptyConversationRef = useRef(false);
+  const shouldFocusQuestionRef = useRef(false);
 
   const pendingMessageId = pendingMessage?.id;
 
   /**
-   * Mantém a mensagem mais recente visível após:
+   * Mantém a parte mais recente da conversa visível.
    *
-   * - Carregamento da conversa.
-   * - Envio de uma pergunta.
-   * - Exibição do indicador de carregamento.
-   * - Recebimento da resposta.
+   * A animação é removida quando a pessoa prefere movimento
+   * reduzido no sistema operacional.
    */
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth",
+    const messagesEnd = messagesEndRef.current;
+
+    if (!messagesEnd || typeof messagesEnd.scrollIntoView !== "function") {
+      return;
+    }
+
+    const prefersReducedMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    messagesEnd.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
       block: "end",
     });
   }, [messages.length, pendingMessageId, isSending]);
 
   /**
+   * Move o foco para o erro de comunicação com a API.
+   */
+  useEffect(() => {
+    if (!errorMessage) {
+      return;
+    }
+
+    errorContainerRef.current?.focus({
+      preventScroll: false,
+    });
+  }, [errorMessage, errorAnnouncementKey]);
+
+  /**
+   * Move o foco para avisos de persistência.
+   */
+  useEffect(() => {
+    if (!storageWarning) {
+      return;
+    }
+
+    storageWarningContainerRef.current?.focus({
+      preventScroll: false,
+    });
+  }, [storageWarning, storageWarningKey]);
+
+  /**
+   * Move o foco para o estado vazio somente depois de uma
+   * limpeza solicitada pela pessoa usuária.
+   */
+  useEffect(() => {
+    if (
+      messages.length !== 0 ||
+      pendingMessage ||
+      !shouldFocusEmptyConversationRef.current
+    ) {
+      return;
+    }
+
+    shouldFocusEmptyConversationRef.current = false;
+
+    emptyConversationRef.current?.focus({
+      preventScroll: false,
+    });
+  }, [messages.length, pendingMessage]);
+
+  /**
+   * Devolve o foco ao campo depois de uma resposta concluída.
+   */
+  useEffect(() => {
+    if (
+      isSending ||
+      errorMessage ||
+      storageWarning ||
+      !shouldFocusQuestionRef.current
+    ) {
+      return;
+    }
+
+    shouldFocusQuestionRef.current = false;
+
+    questionInputRef.current?.focus({
+      preventScroll: false,
+    });
+  }, [isSending, errorMessage, storageWarning]);
+
+  function showError(message: string): void {
+    setErrorMessage(message);
+
+    setErrorAnnouncementKey((currentKey) => currentKey + 1);
+  }
+
+  function showStorageWarning(message: string): void {
+    setStorageWarning(message);
+
+    setStorageWarningKey((currentKey) => currentKey + 1);
+  }
+
+  /**
    * Persiste a versão mais recente da conversa.
    *
-   * Uma falha de localStorage não remove as mensagens que já
-   * foram apresentadas na interface.
+   * Uma falha no localStorage não remove as mensagens já
+   * apresentadas na interface.
    */
   function persistMessages(nextMessages: SavedChatMessage[]): void {
     try {
@@ -336,7 +425,7 @@ function ChatConversation({ simulation }: ChatConversationProps) {
     } catch (error) {
       console.error("Falha ao salvar a conversa:", error);
 
-      setStorageWarning(
+      showStorageWarning(
         error instanceof ChatStorageError
           ? error.message
           : "A conversa está visível, mas não pôde ser salva neste navegador.",
@@ -345,11 +434,10 @@ function ChatConversation({ simulation }: ChatConversationProps) {
   }
 
   /**
-   * Envia uma pergunta usando somente as mensagens que já
-   * possuem resposta concluída.
+   * Envia uma pergunta e incorpora a resposta à conversa.
    *
-   * Uma mensagem pendente pode ser reaproveitada quando a pessoa
-   * seleciona a ação "Tentar novamente".
+   * Uma mensagem pendente é reaproveitada na opção de nova
+   * tentativa, evitando perguntas duplicadas.
    */
   async function sendQuestion(
     questionToSend: string,
@@ -375,19 +463,19 @@ function ChatConversation({ simulation }: ChatConversationProps) {
       const nextMessages = [...messages, messageToSend, assistantMessage];
 
       setMessages(nextMessages);
-
       persistMessages(nextMessages);
 
       setPendingMessage(null);
+      shouldFocusQuestionRef.current = true;
     } catch (error) {
-      setErrorMessage(getFriendlyErrorMessage(error));
+      showError(getFriendlyErrorMessage(error));
     } finally {
       setIsSending(false);
     }
   }
 
   /**
-   * Valida e envia a pergunta digitada no formulário.
+   * Valida e envia a pergunta digitada.
    */
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -404,11 +492,7 @@ function ChatConversation({ simulation }: ChatConversationProps) {
   }
 
   /**
-   * Permite uma experiência semelhante a aplicativos de conversa:
-   *
-   * - Enter envia a pergunta.
-   * - Shift + Enter adiciona uma nova linha.
-   * - Enter durante composição de caracteres não envia.
+   * Enter envia a pergunta; Shift + Enter cria uma nova linha.
    */
   function handleQuestionKeyDown(
     event: KeyboardEvent<HTMLTextAreaElement>,
@@ -431,7 +515,19 @@ function ChatConversation({ simulation }: ChatConversationProps) {
   }
 
   /**
-   * Tenta novamente a pergunta que falhou anteriormente.
+   * Preenche o campo com uma pergunta sugerida e mantém o foco
+   * no local em que o texto poderá ser editado.
+   */
+  function handleSuggestedQuestion(suggestedQuestion: string): void {
+    setQuestion(suggestedQuestion);
+
+    questionInputRef.current?.focus({
+      preventScroll: false,
+    });
+  }
+
+  /**
+   * Tenta novamente a pergunta que falhou.
    */
   function handleRetry(): void {
     if (!pendingMessage || isSending) {
@@ -443,9 +539,6 @@ function ChatConversation({ simulation }: ChatConversationProps) {
 
   /**
    * Remove somente as mensagens desta simulação.
-   *
-   * A simulação financeira, os cálculos e os insights da IA
-   * permanecem preservados.
    */
   function handleClearConversation(): void {
     if (messages.length === 0 || isSending) {
@@ -463,14 +556,17 @@ function ChatConversation({ simulation }: ChatConversationProps) {
     try {
       clearChatMessages(simulation.id);
 
+      shouldFocusEmptyConversationRef.current = true;
+
       setMessages([]);
       setPendingMessage(null);
+      setQuestion("");
       setErrorMessage(null);
       setStorageWarning(null);
     } catch (error) {
       console.error("Falha ao limpar a conversa:", error);
 
-      setStorageWarning("Não foi possível apagar a conversa neste navegador.");
+      showStorageWarning("Não foi possível apagar a conversa neste navegador.");
     }
   }
 
@@ -508,47 +604,68 @@ function ChatConversation({ simulation }: ChatConversationProps) {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        <section
+          aria-label="Resumo da simulação"
+          className="mt-6 grid gap-3 sm:grid-cols-3"
+        >
           <Card variant="muted" padding="sm">
-            <p className="text-xs text-[var(--color-text-muted)]">Meta</p>
+            <dl>
+              <dt className="text-xs text-[var(--color-text-muted)]">Meta</dt>
 
-            <strong className="mt-1 block text-sm">
-              {simulation.input.meta}
-            </strong>
+              <dd className="mt-1 text-sm font-bold">
+                {simulation.input.meta}
+              </dd>
+            </dl>
           </Card>
 
           <Card variant="muted" padding="sm">
-            <p className="text-xs text-[var(--color-text-muted)]">
-              Valor da meta
-            </p>
+            <dl>
+              <dt className="text-xs text-[var(--color-text-muted)]">
+                Valor da meta
+              </dt>
 
-            <strong className="mt-1 block text-sm">
-              {formatCurrency(simulation.input.custoDaMeta)}
-            </strong>
+              <dd className="mt-1 text-sm font-bold">
+                {formatCurrency(simulation.input.custoDaMeta)}
+              </dd>
+            </dl>
           </Card>
 
           <Card variant="muted" padding="sm">
-            <p className="text-xs text-[var(--color-text-muted)]">Prazo</p>
+            <dl>
+              <dt className="text-xs text-[var(--color-text-muted)]">Prazo</dt>
 
-            <strong className="mt-1 block text-sm">
-              {simulation.input.prazoDesejadoEmMeses} meses
-            </strong>
+              <dd className="mt-1 text-sm font-bold">
+                {simulation.input.prazoDesejadoEmMeses} meses
+              </dd>
+            </dl>
           </Card>
-        </div>
+        </section>
       </Card>
 
       <Card padding="lg">
+        <h2 id={conversationTitleId} className="sr-only">
+          Conversa com o Educador Financeiro
+        </h2>
+
         <div
           role="log"
+          aria-labelledby={conversationTitleId}
           aria-live="polite"
-          aria-relevant="additions"
+          aria-relevant="additions text"
+          aria-busy={isSending}
           className="max-h-[65vh] min-h-64 space-y-4 overflow-y-auto scroll-smooth pr-1"
         >
           {messages.length === 0 && !pendingMessage && (
-            <div className="py-4 text-center">
-              <h2 className="text-lg font-semibold">
+            <div
+              ref={emptyConversationRef}
+              role="region"
+              aria-label="Conversa vazia"
+              tabIndex={-1}
+              className="scroll-mt-24 rounded-2xl py-4 text-center outline-none"
+            >
+              <h3 className="text-lg font-semibold">
                 O que você gostaria de entender?
-              </h2>
+              </h3>
 
               <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--color-text-muted)]">
                 Você pode perguntar sobre orçamento, prazo, organização dos
@@ -560,9 +677,9 @@ function ChatConversation({ simulation }: ChatConversationProps) {
                   <button
                     key={suggestedQuestion}
                     type="button"
-                    className="rounded-full border border-slate-300 px-4 py-2 text-sm transition hover:border-emerald-500 hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:border-slate-700 dark:hover:border-emerald-400 dark:hover:text-emerald-300"
+                    className="min-h-11 rounded-full border border-[var(--color-border)] px-4 py-2 text-sm transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)] motion-reduce:transition-none"
                     onClick={() => {
-                      setQuestion(suggestedQuestion);
+                      handleSuggestedQuestion(suggestedQuestion);
                     }}
                   >
                     {suggestedQuestion}
@@ -581,8 +698,11 @@ function ChatConversation({ simulation }: ChatConversationProps) {
           {isSending && (
             <div className="flex justify-start">
               <div
+                role="status"
+                aria-label="Resposta em preparação"
+                aria-live="polite"
                 aria-busy="true"
-                className="rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm text-[var(--color-text-muted)] dark:border-slate-700 dark:bg-slate-900"
+                className="rounded-2xl rounded-bl-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-muted)]"
               >
                 O Educador Financeiro está preparando a resposta...
               </div>
@@ -593,39 +713,52 @@ function ChatConversation({ simulation }: ChatConversationProps) {
         </div>
 
         {storageWarning && (
-          <Alert
-            title="A conversa não foi salva"
-            variant="warning"
-            className="mt-6"
+          <div
+            ref={storageWarningContainerRef}
+            tabIndex={-1}
+            className="mt-6 scroll-mt-24 rounded-2xl outline-none"
           >
-            {storageWarning}
-          </Alert>
+            <Alert
+              key={storageWarningKey}
+              title="A conversa não foi salva"
+              variant="warning"
+            >
+              {storageWarning}
+            </Alert>
+          </div>
         )}
 
         {errorMessage && (
-          <Alert
-            title="Não foi possível responder"
-            variant="danger"
-            className="mt-6"
+          <div
+            ref={errorContainerRef}
+            tabIndex={-1}
+            className="mt-6 scroll-mt-24 rounded-2xl outline-none"
           >
-            <div className="space-y-3">
-              <p>{errorMessage}</p>
+            <Alert
+              key={errorAnnouncementKey}
+              title="Não foi possível responder"
+              variant="danger"
+            >
+              <div className="space-y-3">
+                <p>{errorMessage}</p>
 
-              {pendingMessage && (
-                <Button
-                  variant="secondary"
-                  onClick={handleRetry}
-                  disabled={isSending}
-                >
-                  Tentar novamente
-                </Button>
-              )}
-            </div>
-          </Alert>
+                {pendingMessage && (
+                  <Button
+                    variant="secondary"
+                    disabled={isSending}
+                    onClick={handleRetry}
+                  >
+                    Tentar novamente
+                  </Button>
+                )}
+              </div>
+            </Alert>
+          </div>
         )}
 
         <form
-          className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-700"
+          aria-label="Enviar pergunta ao Educador Financeiro"
+          className="mt-6 border-t border-[var(--color-border)] pt-6"
           onSubmit={handleSubmit}
         >
           <label
@@ -636,14 +769,16 @@ function ChatConversation({ simulation }: ChatConversationProps) {
           </label>
 
           <textarea
+            ref={questionInputRef}
             id="financial-chat-question"
             name="financialChatQuestion"
             rows={4}
             maxLength={600}
             value={question}
             disabled={isSending}
+            aria-describedby={`${questionCounterId} ${questionInstructionsId}`}
             placeholder="Exemplo: como posso organizar melhor o valor que sobra por mês?"
-            className="mt-2 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm leading-6 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:bg-slate-950"
+            className="mt-2 w-full resize-y rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm leading-6 outline-none transition placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-focus-ring)]/20 disabled:cursor-not-allowed disabled:opacity-70 motion-reduce:transition-none"
             onChange={(event) => {
               setQuestion(event.target.value);
             }}
@@ -652,11 +787,17 @@ function ChatConversation({ simulation }: ChatConversationProps) {
 
           <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs text-[var(--color-text-muted)]">
+              <p
+                id={questionCounterId}
+                className="text-xs text-[var(--color-text-muted)]"
+              >
                 {question.length}/600 caracteres
               </p>
 
-              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              <p
+                id={questionInstructionsId}
+                className="mt-1 text-xs text-[var(--color-text-muted)]"
+              >
                 Enter envia · Shift + Enter cria uma nova linha
               </p>
             </div>
